@@ -2,7 +2,12 @@ import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import { Octokit } from 'octokit';
 
+import { authors, dateTimeFormat } from './constant.js';
+
 dotenv.config();
+
+const OWNER = process.env.REPO_OWNER;
+const REPO_NAME = process.env.REPO_NAME;
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
@@ -19,29 +24,24 @@ export async function getLoggedInUser() {
   return login;
 }
 
-export async function fetchOpenPRs(owner, repo) {
+export async function fetchOpenPRs() {
   const result = await octokit.request('GET /repos/{owner}/{repo}/pulls', {
-    owner,
-    repo,
+    owner: OWNER,
+    repo: REPO_NAME,
   });
 
-  // console.log(result.data[0]);
-
   const openPRs = result.data
-    // .filter((pr) => pr.state === 'open' || pr.state === 'draft')
+    .filter((pr) => authors.includes(pr.user.login))
     .map((pr) => ({
       title: pr.title,
-      url: pr.url,
-      locked: pr.locked,
-      username: pr.user.login,
-      site_admin: pr.user.site_admin,
-      created_at: pr.created_at,
-      updated_at: pr.updated_at,
+      url: pr.html_url,
+      number: pr.number,
+      author: pr.user.login,
       state: pr.state,
+      reviewers: pr.requested_reviewers.map((r) => r.login).join(', '),
+      created_at: new Date(pr.created_at).toLocaleString('nu', dateTimeFormat),
       draft: pr.draft,
     }));
 
-  // console.log('Total open PRs: ', openPRs.length);
-
-  console.log(openPRs);
+  return openPRs;
 }
